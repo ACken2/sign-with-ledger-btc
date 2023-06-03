@@ -33,8 +33,9 @@ class BIP32 {
             // Return the deviation path if it matches with the provided address
             if (result.derivedAddress === address) {
                 return {
-                    path: xpubBasePath + '/0/' + i,
-                    publicKey: result.scriptPubKey as Buffer
+                    path: 'm/' + xpubBasePath + '/0/' + i,
+                    scriptPubKey: result.scriptPubKey as Buffer,
+                    publicKey: result.publicKey
                 }
             }
             i++; // If not, try with the next index
@@ -54,7 +55,7 @@ class BIP32 {
         // Derive the associated public key with the xpub and address number
         const publicKey = this.bip32.fromBase58(xpub).derive(0).derive(addressNumber).publicKey;
         // Derive the address
-        let result: { derivedAddress: string | undefined, scriptPubKey: Buffer | undefined };
+        let result: { derivedAddress: string | undefined, scriptPubKey: Buffer | undefined, publicKey: Buffer };
         let temp;
         switch (addressType) {
             case ("segwit"):
@@ -66,7 +67,8 @@ class BIP32 {
                 });
                 result = {
                     derivedAddress: temp.address,
-                    scriptPubKey: temp.output
+                    scriptPubKey: temp.output,
+                    publicKey: publicKey
                 }
                 break;
             case ("native_segwit"):
@@ -76,7 +78,8 @@ class BIP32 {
                 });
                 result = {
                     derivedAddress: temp.address,
-                    scriptPubKey: temp.output
+                    scriptPubKey: temp.output,
+                    publicKey: publicKey
                 }
                 break;
             case ("taproot"):
@@ -89,7 +92,8 @@ class BIP32 {
                 });
                 result = {
                     derivedAddress: temp.address,
-                    scriptPubKey: temp.output
+                    scriptPubKey: temp.output,
+                    publicKey: publicKey.subarray(1, 33)
                 }
                 break;
             default:
@@ -99,7 +103,8 @@ class BIP32 {
                 });
                 result = {
                     derivedAddress: temp.address,
-                    scriptPubKey: temp.output
+                    scriptPubKey: temp.output,
+                    publicKey: publicKey
                 }
                 break;
         }
