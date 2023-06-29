@@ -1,5 +1,6 @@
 // Import dependencies
 import base58 from "bs58";
+import BIP32 from "./BIP32";
 import * as bitcoin from 'bitcoinjs-lib';
 import { BIP322, Address } from 'bip322-js';
 import { AddressType, getAddressType } from "./AddressType";
@@ -74,6 +75,30 @@ class LedgerAPI {
 			});
 		}
 		return xpubs;
+	}
+
+	/**
+	 * Brute-force compute the path and script public key associated with a given address.
+	 * @param address Target address to be brute-force computed
+	 * @param accountSearchSpace Define the end of the account search space, which is from account 0 to account 'accountSearchSpace'
+	 * @param addressSearchSpace Define the end of the address search space for each account, which is from address 0 to address 'addressSearchSpace'
+	 * @returns The deviation path, scriptPubKey, and public key of the given address, or undefined if the address cannot be derived using the provided setting
+	 */
+	public async findAddressPathAndKey(address: string, accountSearchSpace: number = 10, addressSearchSpace: number = 50) {
+		// Get the type of address provided
+		const addressType = getAddressType(address);
+		// Get the xpubs related to that address type - from account 0 to account 'accountSearchSpace'
+		const xpubs = await this.getXPubAddress(addressType, 0, accountSearchSpace);
+		// Create BIP32 instance
+		const bip32 = new BIP32();
+		// Loop from address 0 to address 'addressSearchSpace' for each xpub key to attempt to derive the given address
+		for (let i=0; i<xpubs.length; i++) {
+			const searchResult = bip32.findAddressPathAndKey(xpubs[i].xpub, xpubs[i].path, address, 0, addressSearchSpace);
+			if (searchResult) {
+				return searchResult; // Found
+			}
+		}
+		return undefined; // Not found
 	}
 
 	/**
