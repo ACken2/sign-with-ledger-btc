@@ -14,6 +14,7 @@
 		"@types/react": "^18.2.6",
 		"@types/react-dom": "^18.2.4",
 		"bip32": "^4.0.0",
+		"bip322-js": "^1.0.3",
 		"bitcoinjs-lib": "^6.1.0",
 		"bs58": "^5.0.0",
 		"ecpair": "^2.1.0",

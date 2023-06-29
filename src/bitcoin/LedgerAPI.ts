@@ -1,5 +1,6 @@
 // Import dependencies
 import base58 from "bs58";
+import { BIP322, Address } from 'bip322-js';
 import * as bitcoin from 'bitcoinjs-lib';
 import TransportWebHID from "@ledgerhq/hw-transport-webhid";
 import { AppClient, DefaultWalletPolicy } from 'ledger-bitcoin';
@@ -126,18 +127,18 @@ class LedgerAPI {
 
 	/**
 	 * Sign a BIP-322 message using a Ledger device.
-	 * @param toSpendTx The toSpend transaction as required in BIP-322
-	 * @param toSignTx The toSign transaction, in the form of a PSBT, as required in BIP-322
+	 * @param message message_challenge to be signed by the address 
 	 * @param deviationPath The full deviation path to derive the address to be signing the toSignTx (e.g., m/86'/0'/0'/0/0)
-	 * @param scriptPubKey The script public key of the address to be signing the toSignTx
+	 * @param address Address to be signing the message
 	 * @param pubKey The public key (for segwit or native segwit) or internal key (for taproot) of the address to be signing the toSignTx
-	 * @param type Type of address to be used to sign the message, must be either "segwit", "native_segwit", or "taproot"
-	 * @returns The signed toSignTx in hex encoding
+	 * @returns The simple BIP-322 signature, encoded using base-64
 	 */
-	public async signBIP322(
-		toSpendTx: bitcoin.Transaction, toSignTx: bitcoin.Psbt, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer,
-		type: "segwit" | "native_segwit" | "taproot"
-	) {
+	public async signBIP322(message: string, deviationPath: string, address: string, pubKey: Buffer) {
+		// Convert address into scriptPubKey
+		const scriptPubKey = Address.convertAdressToScriptPubkey(address);
+		// Construct toSpend and toSign transaction as specified in BIP-322
+		const toSpendTx = BIP322.buildToSpendTx(message, scriptPubKey);
+		const toSpendTxId = toSpendTx.getId();
 		// Derive the root deviation path for subsequent uses
 		const rootDeviationPath = this.sliceFullPathToRootPath(deviationPath);
 		if (!rootDeviationPath) {
@@ -146,51 +147,45 @@ class LedgerAPI {
 		// Get master fingerprint and account xpub key
 		const fpr = await this.ledgerClient.getMasterFingerprint();
 		const accountPubkey = await this.ledgerClient.getExtendedPubkey(rootDeviationPath);
-		// Construct the appropriate toSign PSBT depending on the address type
+		// Construct and sign the appropriate toSign PSBT depending on the address type
 		let psbt: bitcoin.Psbt;
-		switch (type) {
-			case "segwit":
-				psbt = this.buildToSignSegwit(toSignTx, deviationPath, scriptPubKey, pubKey, fpr, accountPubkey, toSpendTx);
-				break;
-			case "native_segwit":
-				psbt = this.buildToSignNativeSegwit(toSignTx, deviationPath, scriptPubKey, pubKey, fpr, accountPubkey);
-				break;
-			case "taproot":
-				psbt = this.buildToSignTaproot(toSignTx, deviationPath, scriptPubKey, pubKey, fpr, accountPubkey);
-				break;
+		if (Address.isP2SH(address)) {
+			// P2SH-P2WPKH signing path
+			psbt = this.buildToSignSegwit(toSpendTxId, deviationPath, scriptPubKey, pubKey, fpr, accountPubkey, toSpendTx);
+			const result = await this.signPSBT(psbt.toBase64(), rootDeviationPath, 'segwit');
+			psbt.updateInput(0, {
+				partialSig: [result[0][1]]
+			});
 		}
-		// Sign the PSBT
-		// console.log("Unsigned PSBT: " + psbt.toBase64());
-		const result = await this.signPSBT(psbt.toBase64(), rootDeviationPath, type);
-		// Push the signature into the PSBT
-		switch (type) {
-			case "segwit":
-				psbt.updateInput(0, {
-					partialSig: [result[0][1]]
-				});
-				break;
-			case "native_segwit":
-				psbt.updateInput(0, {
-					partialSig: [result[0][1]]
-				});
-				break;
-			case "taproot":
-				psbt.updateInput(0, {
-					tapKeySig: result[0][1].signature
-				});
-				break;
+		else if (Address.isP2WPKH(address)) {
+			// P2WPKH signing path
+			psbt = this.buildToSignNativeSegwit(toSpendTxId, deviationPath, scriptPubKey, pubKey, fpr, accountPubkey);
+			const result = await this.signPSBT(psbt.toBase64(), rootDeviationPath, 'native_segwit');
+			psbt.updateInput(0, {
+				partialSig: [result[0][1]]
+			});
 		}
-		// Finalize the PSBT and obtain the signed transaction
+		else if (Address.isP2TR(address)) {
+			// P2TR signing path
+			psbt = this.buildToSignTaproot(toSpendTxId, deviationPath, scriptPubKey, pubKey, fpr, accountPubkey);
+			const result = await this.signPSBT(psbt.toBase64(), rootDeviationPath, 'taproot');
+			psbt.updateInput(0, {
+				tapKeySig: result[0][1].signature
+			});
+		}
+		else {
+			throw new Error('Unable to sign BIP-322 message for unsupported address type.') // Unsupported address type
+		}
+		// Finalize the PSBT
 		psbt.finalizeAllInputs();
-		// console.log("Signed PSBT: " + psbt.toBase64());
-		const signedTx = psbt.extractTransaction().toHex();
-		// console.log("Signed Tx: " + signedTx);
-		return signedTx;
+		// Encode the witness stack into a simple BIP-322 signature
+		const signature = BIP322.encodeWitness(psbt);
+		return signature;
 	}
 
 	/**
 	 * Construct the appropriate toSign PSBT for a segwit address.
-	 * @param toSignTx The toSign transaction, in the form of a PSBT, as required in BIP-322
+	 * @param toSpendTxId Transaction ID of the to_spend transaction, as specified in BIP-322
 	 * @param deviationPath The full deviation path to derive the address to be signing the toSignTx (e.g., m/49'/0'/0'/0/0)
 	 * @param scriptPubKey The script public key of the address to be signing the toSignTx
 	 * @param pubKey The public key of the address to be signing the toSignTx
@@ -200,7 +195,7 @@ class LedgerAPI {
 	 * @returns toSign PSBT that is ready to be signed by a Ledger device
 	 */
 	private buildToSignSegwit(
-		toSignTx: bitcoin.Psbt, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer, 
+		toSpendTxId: string, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer, 
 		fingerprint: string, accountPubkey: string, toSpendTx: bitcoin.Transaction
 	) {
 		// Derive the corresponding redeem script
@@ -216,7 +211,7 @@ class LedgerAPI {
 			.setVersion(0) // nVersion = 0
 			.setLocktime(0) // nLockTime = 0
 			.addInput({
-				hash: toSignTx.txInputs[0].hash, // vin[0].prevout.hash = to_spend.txid
+				hash: toSpendTxId, // vin[0].prevout.hash = to_spend.txid
 				index: 0, // vin[0].prevout.n = 0
 				sequence: 0, // vin[0].nSequence = 0
 				witnessUtxo: { value: 0, script: scriptPubKey },
@@ -230,7 +225,7 @@ class LedgerAPI {
 			})
 			.addOutput({
 				value: 0, // vout[0].nValue = 0
-				script: Buffer.from([0x6a, 0x00]) // vout[0].scriptPubKey = OP_RETURN // vout[0].scriptPubKey = OP_RETURN // Doesn't work yet
+				script: Buffer.from([0x6a]) // vout[0].scriptPubKey = OP_RETURN
 			});
 		// Add global xpub key information
 		psbt.updateGlobal({
@@ -245,7 +240,7 @@ class LedgerAPI {
 
 	/**
 	 * Construct the appropriate toSign PSBT for a native segwit address.
-	 * @param toSignTx The toSign transaction, in the form of a PSBT, as required in BIP-322
+	 * @param toSpendTxId Transaction ID of the to_spend transaction, as specified in BIP-322
 	 * @param deviationPath The full deviation path to derive the address to be signing the toSignTx (e.g., m/84'/0'/0'/0/0)
 	 * @param scriptPubKey The script public key of the address to be signing the toSignTx
 	 * @param pubKey The public key of the address to be signing the toSignTx
@@ -254,7 +249,7 @@ class LedgerAPI {
 	 * @returns toSign PSBT that is ready to be signed by a Ledger device
 	 */
 	private buildToSignNativeSegwit(
-		toSignTx: bitcoin.Psbt, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer, 
+		toSpendTxId: string, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer, 
 		fingerprint: string, accountPubkey: string
 	) {
 		// Construct a native segwit PSBT
@@ -262,7 +257,7 @@ class LedgerAPI {
 			.setVersion(0) // nVersion = 0
 			.setLocktime(0) // nLockTime = 0
 			.addInput({
-				hash: toSignTx.txInputs[0].hash, // vin[0].prevout.hash = to_spend.txid
+				hash: toSpendTxId, // vin[0].prevout.hash = to_spend.txid
 				index: 0, // vin[0].prevout.n = 0
 				sequence: 0, // vin[0].nSequence = 0
 				witnessUtxo: { value: 0, script: scriptPubKey },
@@ -274,7 +269,7 @@ class LedgerAPI {
 			})
 			.addOutput({
 				value: 0, // vout[0].nValue = 0
-				script: Buffer.from([0x6a, 0x00]) // vout[0].scriptPubKey = OP_RETURN // vout[0].scriptPubKey = OP_RETURN // Doesn't work yet
+				script: Buffer.from([0x6a]) // vout[0].scriptPubKey = OP_RETURN
 			});
 		// Add global xpub key information
 		psbt.updateGlobal({
@@ -289,7 +284,7 @@ class LedgerAPI {
 
 	/**
 	 * Construct the appropriate toSign PSBT for a taproot address.
-	 * @param toSignTx The toSign transaction, in the form of a PSBT, as required in BIP-322
+	 * @param toSpendTxId Transaction ID of the to_spend transaction, as specified in BIP-322
 	 * @param deviationPath The full deviation path to derive the address to be signing the toSignTx (e.g., m/86'/0'/0'/0/0)
 	 * @param scriptPubKey The script public key of the address to be signing the toSignTx
 	 * @param pubKey The internal key of the address to be signing the toSignTx
@@ -298,7 +293,7 @@ class LedgerAPI {
 	 * @returns toSign PSBT that is ready to be signed by a Ledger device
 	 */
 	private buildToSignTaproot(
-		toSignTx: bitcoin.Psbt, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer, 
+		toSpendTxId: string, deviationPath: string, scriptPubKey: Buffer, pubKey: Buffer, 
 		fingerprint: string, accountPubkey: string
 	) {
 		// Construct a taproot PSBT
@@ -306,7 +301,7 @@ class LedgerAPI {
 			.setVersion(0) // nVersion = 0
 			.setLocktime(0) // nLockTime = 0
 			.addInput({
-				hash: toSignTx.txInputs[0].hash, // vin[0].prevout.hash = to_spend.txid
+				hash: toSpendTxId, // vin[0].prevout.hash = to_spend.txid
 				index: 0, // vin[0].prevout.n = 0
 				sequence: 0, // vin[0].nSequence = 0
 				witnessUtxo: { value: 0, script: scriptPubKey },
@@ -320,7 +315,7 @@ class LedgerAPI {
 			})
 			.addOutput({
 				value: 0, // vout[0].nValue = 0
-				script: Buffer.from([0x6a, 0x00]) // vout[0].scriptPubKey = OP_RETURN // vout[0].scriptPubKey = OP_RETURN // Doesn't work yet
+				script: Buffer.from([0x6a]) // vout[0].scriptPubKey = OP_RETURN
 			});
 		// Add global xpub key information
 		psbt.updateGlobal({
