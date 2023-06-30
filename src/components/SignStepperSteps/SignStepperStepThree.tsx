@@ -27,7 +27,11 @@ const SignStepperStepThree: React.FC<SignStepperStepThreeProps> = ({ address, pr
 	// Render step 3 for the signing process
 	return (
 		<Step index={2}>
-            <StepLabel>{`Searching ${address} on your Ledger device`}</StepLabel>
+            <StepLabel>{
+                address === '' ?
+                'Search for the derivation path of your address on the Ledger device' :
+                `Search for the derivation path of ${address} on the Ledger device`
+            }</StepLabel>
             <StepContent>
                 {
                     (progress >= 0 && progress <= 100) ?
