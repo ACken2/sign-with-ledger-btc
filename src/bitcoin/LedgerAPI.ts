@@ -41,6 +41,20 @@ class LedgerAPI {
 	}
 
 	/**
+	 * Check if the initialized Ledger client is ready for operation.
+	 * @returns True if the connection is ready, or false if not.
+	 */
+	public async checkConnection() {
+		try {
+			await this.getXPubAddress(AddressType.LEGACY, 0, 1); // Attempt to get 1 xpub address
+			return true;
+		}
+		catch (err) {
+			return false;
+		}
+	}
+
+	/**
 	 * Get xpub addresses of a given wallet type and account numbers.
 	 * @param addressType Bitcoin address type of the wallet
 	 * @param from The lowest account number to be returned (inclusive), which is defined as basePath/from'
