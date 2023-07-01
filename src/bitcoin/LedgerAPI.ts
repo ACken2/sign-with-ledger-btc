@@ -47,8 +47,8 @@ class LedgerAPI {
 	 */
 	public async checkConnection() {
 		try {
-			// Attempt to get 1 xpub address within 1 second
-			await timeLimit(this.getXPubAddress(AddressType.LEGACY, 0, 1), 1000, { rejectWith: new Error('checkConnection Timeout') });
+			// Attempt to get 1 xpub address within 5 seconds
+			await timeLimit(this.getXPubAddress(AddressType.SEGWIT, 0, 1), 5000, { rejectWith: new Error('checkConnection Timeout') });
 			return true;
 		}
 		catch (err) {
@@ -98,9 +98,13 @@ class LedgerAPI {
 	 * @param address Target address to be brute-force computed
 	 * @param accountSearchSpace Define the end of the account search space, which is from account 0 to account 'accountSearchSpace'
 	 * @param addressSearchSpace Define the end of the address search space for each account, which is from address 0 to address 'addressSearchSpace'
+	 * @param progressCallback Callback function to receive updates on the progress of the search (ranges from 0 to 1), defaults to undefined
 	 * @returns The deviation path, scriptPubKey, and public key of the given address, or undefined if the address cannot be derived using the provided setting
 	 */
-	public async findAddressPathAndKey(address: string, accountSearchSpace: number = 10, addressSearchSpace: number = 50) {
+	public async findAddressPathAndKey(
+		address: string, accountSearchSpace: number = 10, addressSearchSpace: number = 50, 
+		progressCallback: ((progress: number) => void) | undefined = undefined
+	) {
 		// Get the type of address provided
 		const addressType = getAddressType(address);
 		// Get the xpubs related to that address type - from account 0 to account 'accountSearchSpace'
@@ -111,7 +115,20 @@ class LedgerAPI {
 		for (let i=0; i<xpubs.length; i++) {
 			const searchResult = bip32.findAddressPathAndKey(xpubs[i].xpub, xpubs[i].path, address, 0, addressSearchSpace);
 			if (searchResult) {
-				return searchResult; // Found
+				// Deviation path found
+				// Call progressCallback with 1 if found
+				if (progressCallback) {
+					progressCallback(1);
+				}
+				// Return the path
+				return searchResult;
+			}
+			else {
+				// Deviation path not found yet
+				// Call progressCallback with current progress through the search space
+				if (progressCallback) {
+					progressCallback((i+1)/xpubs.length);
+				}
 			}
 		}
 		return undefined; // Not found
