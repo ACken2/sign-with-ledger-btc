@@ -2,6 +2,7 @@
 import base58 from "bs58";
 import BIP32 from "./BIP32";
 import * as bitcoin from 'bitcoinjs-lib';
+import timeLimit from 'time-limit-promise';
 import { BIP322, Address } from 'bip322-js';
 import { AddressType, getAddressType } from "./AddressType";
 import TransportWebHID from "@ledgerhq/hw-transport-webhid";
@@ -46,7 +47,8 @@ class LedgerAPI {
 	 */
 	public async checkConnection() {
 		try {
-			await this.getXPubAddress(AddressType.LEGACY, 0, 1); // Attempt to get 1 xpub address
+			// Attempt to get 1 xpub address within 1 second
+			await timeLimit(this.getXPubAddress(AddressType.LEGACY, 0, 1), 1000, { rejectWith: new Error('checkConnection Timeout') });
 			return true;
 		}
 		catch (err) {
