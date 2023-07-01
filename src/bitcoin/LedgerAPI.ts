@@ -61,9 +61,10 @@ class LedgerAPI {
 	 * @param addressType Bitcoin address type of the wallet
 	 * @param from The lowest account number to be returned (inclusive), which is defined as basePath/from'
 	 * @param to The highest account number to be returned (inclusive), which is defined as basePath/to'
+	 * @param progressCallback Callback function to receive updates on the progress of the search (ranges from 0 to 0.8), defaults to undefined
 	 * @returns Array of xpub addresses and the corresponding path used to derive each of the address
 	 */
-	public async getXPubAddress(addressType: AddressType, from: number, to: number) {
+	public async getXPubAddress(addressType: AddressType, from: number, to: number, progressCallback: ((progress: number) => void) | undefined = undefined) {
 		// Temporary array for storing the xpub key generated
 		const xpubs: Array<{ xpub: string, path: string }> = [];
 		// Deteremine the path to use
@@ -84,11 +85,16 @@ class LedgerAPI {
 		}
 		// Loop to generate xpub key for path from the given 'from' index to the given 'to' index
 		for (let i=from; i<=to; i++) {
+			// Get xpub key from Ledger device
 			const xpub = await this.ledgerClient.getExtendedPubkey(basePath + i + "'");
 			xpubs.push({
 				xpub: xpub,
 				path: basePath + i + "'"
 			});
+			// Call progressCallback with current progress if provided
+			if (progressCallback) {
+				progressCallback(((i+1)/to) * 0.8);
+			}
 		}
 		return xpubs;
 	}
@@ -108,7 +114,7 @@ class LedgerAPI {
 		// Get the type of address provided
 		const addressType = getAddressType(address);
 		// Get the xpubs related to that address type - from account 0 to account 'accountSearchSpace'
-		const xpubs = await this.getXPubAddress(addressType, 0, accountSearchSpace);
+		const xpubs = await this.getXPubAddress(addressType, 0, accountSearchSpace, progressCallback);
 		// Create BIP32 instance
 		const bip32 = new BIP32();
 		// Loop from address 0 to address 'addressSearchSpace' for each xpub key to attempt to derive the given address
@@ -127,7 +133,7 @@ class LedgerAPI {
 				// Deviation path not found yet
 				// Call progressCallback with current progress through the search space
 				if (progressCallback) {
-					progressCallback((i+1)/xpubs.length);
+					progressCallback(0.8 + ((i+1)/xpubs.length) * 0.2);
 				}
 			}
 		}

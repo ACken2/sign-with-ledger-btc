@@ -39,7 +39,7 @@ const SignStepperStepThree: React.FC<SignStepperStepThreeProps> = ({ address, pr
                         <>
                             <SignStepperStepsText>Please wait patiently while we are searching your address on your Ledger device.</SignStepperStepsText>
                             <Line 
-                                style={{ marginTop: '1em', width: '80%' }} percent={10} strokeWidth={4} trailWidth={4} 
+                                style={{ marginTop: '1em', width: '80%' }} percent={progress} strokeWidth={4} trailWidth={4} 
                                 strokeColor={theme.palette.primary.dark} trailColor={theme.palette.action.disabledBackground} 
                             />
                         </>
