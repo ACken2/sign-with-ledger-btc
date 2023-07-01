@@ -27,7 +27,7 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
     private ledgerAPI: LedgerAPI | undefined;
     // Warning message when Ledger API fails to connect to the device
     public readonly LEDGER_FAIL_CONNECTION = 
-        'Unable to connect to the Bitcoin app on the Ledger device. ' + 
+        'Unable to connect to the Bitcoin app on the Ledger device. \n' + 
         "Make sure your Ledger device is unlocked with the Bitcoin app showing the text 'Bitcoin is ready', " + 
         'and you have allowed the browser to connect with your Ledger device.'
 

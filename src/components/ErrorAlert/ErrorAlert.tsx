@@ -14,7 +14,7 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({ message }) => {
 
     return (
         <Fade timeout={200} in={true}>
-            <Paper square elevation={3} sx={{ width: '90%', maxWidth: 720, bottom: '50px', position: 'absolute' }}>
+            <Paper square elevation={3} sx={{ width: '90%', maxWidth: 720, bottom: '50px', position: 'absolute', whiteSpace: 'pre-line' }}>
                 <Alert severity='error'>{message}</Alert>
             </Paper>
         </Fade>
