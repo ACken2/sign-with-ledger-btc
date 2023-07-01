@@ -4,7 +4,8 @@ import Box from '@mui/material/Box';
 import Stepper from '@mui/material/Stepper';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
-import { SignStepperStepsText, SignStepperStepFour, SignStepperStepOne, SignStepperStepThree, SignStepperStepTwo } from '../../components/SignStepperSteps';
+import { LedgerAPI } from '../../bitcoin';
+import { ErrorAlert, SignStepperStepsText, SignStepperStepFour, SignStepperStepOne, SignStepperStepThree, SignStepperStepTwo } from '../../components';
 
 // Setup typings for props and state
 type SignStepperProps = {
@@ -16,10 +17,19 @@ type SignStepperState = {
     message: string; // Store the message to be signed
     searchSpace: { account: number, address: number }; // Search space currently employed
     signature: string; // Store the signed signature
+    errorMessage: string | undefined; // Store the error message to be displayed (if any)
 }
 
 // Define the SignStepper container
 export default class SignStepper extends React.Component<SignStepperProps, SignStepperState> {
+
+    // Store the Ledger API instance
+    private ledgerAPI: LedgerAPI | undefined;
+    // Warning message when Ledger API fails to connect to the device
+    public readonly LEDGER_FAIL_CONNECTION = 
+        'Unable to connect to the Bitcoin app on the Ledger device. ' + 
+        "Make sure your Ledger device is unlocked with the Bitcoin app showing the text 'Bitcoin is ready', " + 
+        'and you have allowed the browser to connect with your Ledger device.'
 
     constructor(props: SignStepperProps) {
         // Initialize the page
@@ -33,15 +43,62 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
                 account: 10,
                 address: 50
             },
-            signature: ''
+            signature: '',
+            errorMessage: undefined
 		};
     }
 
-    // Handler for clicking the 'Continue' button in SignStepperStepOne
-    handleStepOneContinue = () => {
+    /**
+     * Shows an error message in the UI.
+     * @param message Error message to be shown
+     */
+    showErrorMessage(message: string) {
+        // Push the message into the state
         this.setState({
-            activeStep: this.state.activeStep + 1
+            errorMessage: message
         });
+    }
+
+    /**
+     * Check whether the existing LedgerAPI instance have an active connection with Ledger device.
+     * If not, it will also create an ErrorAlert and change the activeStep back to 0.
+     * @returns Return true if an active connection can be made with the Ledger device, false if otherwise.
+     */
+    checkLedgerAPIConnection = async () => {
+        try {
+            if (this.ledgerAPI && await this.ledgerAPI.checkConnection()) {
+                // Successful connection
+                return true;
+            }
+            // Something wrong with the 
+            throw new Error();
+        } catch (err) {
+            this.setState({
+                activeStep: 0
+            });
+            this.showErrorMessage(this.LEDGER_FAIL_CONNECTION);
+            return false;
+        }
+    }
+
+    /**
+     * Handler for clicking the 'Continue' button in SignStepperStepOne
+     */
+    handleStepOneContinue = async () => {
+        try {
+            // Initialize LedgerAPI
+            this.ledgerAPI = await LedgerAPI.constructorAsync();
+            // Check connection to the Ledger device
+            if (await this.checkLedgerAPIConnection()) {
+                // If successfully connected, advance to the next step
+                this.setState({
+                    activeStep: this.state.activeStep + 1
+                });
+            }
+        }
+        catch (err) {
+            this.showErrorMessage(this.LEDGER_FAIL_CONNECTION);
+        }
     };
 
     // Handler for clicking the 'Continue' button in SignStepperStepTwo
@@ -126,6 +183,9 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
                             Reset
                         </Button>
                     </Paper>
+                )}
+                {this.state.errorMessage !== undefined && (
+                    <ErrorAlert message={this.state.errorMessage} />
                 )}
             </Box>
         );
