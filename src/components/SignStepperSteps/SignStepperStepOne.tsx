@@ -10,6 +10,7 @@ import SignStepperStepsText from './SignStepperStepsText';
 // Import images
 import UnlockImage from './resources/Unlock.png';
 import OpenAppImage from './resources/Open-App.png';
+import ConnectImage from './resources/Connect.png';
 
 // Define props that should be passed into this component
 type SignStepperStepOneProps = {
@@ -25,17 +26,13 @@ const SignStepperStepOne: React.FC<SignStepperStepOneProps> = ({ onContinue }) =
 		<Step index={0}>
             <StepLabel>Connect and unlock your Ledger device</StepLabel>
             <StepContent>
-                <SignStepperStepsText>
-                    Connect and unlock your Ledger device.
-                </SignStepperStepsText>
+                <SignStepperStepsText>Connect and unlock your Ledger device.</SignStepperStepsText>
                 <img src={UnlockImage} alt='Unlock Ledger device' />
-                <SignStepperStepsText>
-                    Open the Bitcoin app on your unlocked device.
-                </SignStepperStepsText>
+                <SignStepperStepsText>Open the Bitcoin app on your unlocked device.</SignStepperStepsText>
                 <img src={OpenAppImage} alt='Open Bitcoin app' />
-                <SignStepperStepsText>
-                    Click Continue when the Ledger device shows the text 'Bitcoin is ready'.
-                </SignStepperStepsText>
+                <SignStepperStepsText>Click Continue when the Ledger device shows the text 'Bitcoin is ready'.</SignStepperStepsText>
+                <SignStepperStepsText mb={1}>If prompted by the browser to select a device, select your Ledger device and then click Connect.</SignStepperStepsText>
+                <img src={ConnectImage} alt='Connect Ledger to browser' />
                 <Box sx={{ mb: 2 }}>
                     <div>
                         <Button
