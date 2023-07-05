@@ -2,10 +2,11 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Stepper from '@mui/material/Stepper';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import { LedgerAPI } from '../../bitcoin';
-import { ErrorAlert, SignStepperStepsText, SignStepperStepFour, SignStepperStepOne, SignStepperStepThree, SignStepperStepTwo } from '../../components';
+import { 
+    ErrorAlert, SignStepperStepOne, SignStepperStepTwo,
+    SignStepperStepThree, SignStepperStepFour, SignStepperStepFinal 
+} from '../../components';
 
 // Setup typings for props and state
 type SignStepperProps = {
@@ -16,7 +17,7 @@ type SignStepperState = {
     address: string; // Store the signing address
     message: string; // Store the message to be signed
     searchSpace: { account: number, address: number }; // Search space currently employed
-    searchProgress: number; // Progress for the current search for deviation path (ranges from 0 to 100 during a search)
+    searchProgress: number; // Progress for the current search for deviation path (ranges from 0 to 100 during a search), -1 by default
     signature: string; // Store the signed signature
     errorMessage: string | undefined; // Store the error message to be displayed (if any)
 }
@@ -31,7 +32,8 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
         'Unable to connect to the Bitcoin app on the Ledger device. \n' + 
         "Make sure your Ledger device is unlocked with the Bitcoin app showing the text 'Bitcoin is ready', " + 
         'and you have allowed the browser to connect with your Ledger device. \n' +
-        'Click Continue when your device is ready.'
+        'Click Continue when your device is ready. \n' +
+        'If the problem persists, try reloading the page.'
     // Warning message for unknown error
     public readonly ERROR_UNKNOWN = 'Unknown error occured. \n';
 
@@ -97,7 +99,8 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
             if (await this.checkLedgerAPIConnection()) {
                 // If successfully connected, advance to the next step
                 this.setState({
-                    activeStep: this.state.activeStep + 1
+                    activeStep: this.state.activeStep + 1,
+                    errorMessage: undefined
                 });
             }
         }
@@ -124,7 +127,8 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
                         account: 10,
                         address: 50
                     },
-                    searchProgress: 0
+                    searchProgress: 0,
+                    errorMessage: undefined
                 }, () => {
                     // Call handleSearch to do the actual search after state update
                     this.handleSearch();
@@ -161,21 +165,34 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
      * If not, it will set progress to -1, and ask the user for follow up action.
      */
     handleSearch = async () => {
-        // Perform deviation path search
-        const result = await this.ledgerAPI?.findAddressPathAndKey(this.state.address, this.state.searchSpace.account, this.state.searchSpace.address, this.handleSearchProgressUpdate);
-        if (result) {
-            // Deviation path found, move on to the next step
-            this.setState({
-                activeStep: this.state.activeStep + 1
-            }, () => {
-                // Propose transaction to be signed after state update
-                this.handleSign(this.state.message, result.path, this.state.address, result.publicKey);
-            });
+        try {
+            if (this.ledgerAPI && await this.checkLedgerAPIConnection()) {
+                // Perform deviation path search
+                const result = await this.ledgerAPI.findAddressPathAndKey(this.state.address, this.state.searchSpace.account, this.state.searchSpace.address, this.handleSearchProgressUpdate);
+                if (result) {
+                    // Deviation path found, move on to the next step
+                    this.setState({
+                        activeStep: this.state.activeStep + 1,
+                        errorMessage: undefined
+                    }, () => {
+                        // Propose transaction to be signed after state update
+                        this.handleSign(result.path, result.publicKey);
+                    });
+                }
+                else {
+                    // Set progress to -1 and ask user for follow up action
+                    this.setState({
+                        searchProgress: -1
+                    });
+                }
+            }
         }
-        else {
-            // Set progress to -1 and ask user for follow up action
+        catch (err) {
+            // Show error message
+            this.showErrorMessage(this.ERROR_UNKNOWN + err);
+            // Set activeStep back to step 2
             this.setState({
-                searchProgress: -1
+                activeStep: 1
             });
         }
     }
@@ -190,7 +207,8 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
             searchSpace: {
                 account: this.state.searchSpace.account * 2,
                 address: this.state.searchSpace.address * 2
-            }
+            },
+            errorMessage: undefined
         }, () => {
             // Call handleSearch to do the actual search after state update
             this.handleSearch();
@@ -203,9 +221,7 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
      */
     handleStepThreeBack = () => {
         this.setState({
-            activeStep: 1,
-            address: '',
-            message: ''
+            activeStep: 1
         });
     };
 
@@ -213,35 +229,53 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
      * Sign a BIP-322 signature via LedgerAPI.
      * If succeed, it will push the signature into the state and move the activeStep to the next step.
      * If failed, it will reset the activeStep back to step 2 with an error message.
-     * @param message message_challenge to be signed by the address 
 	 * @param deviationPath The full deviation path to derive the address to be signing the toSignTx (e.g., m/86'/0'/0'/0/0)
-	 * @param address Address to be signing the message
 	 * @param pubKey The public key (for segwit or native segwit) or internal key (for taproot) of the address to be signing the toSignTx
      */
-    handleSign = async (message: string, deviationPath: string, address: string, pubKey: Buffer) => {
-        // TO-DO
+    handleSign = async (deviationPath: string, pubKey: Buffer) => {
+        try {
+            if (this.ledgerAPI && await this.checkLedgerAPIConnection()) {
+                // If successfully connected, propose transaction to be signed on the Ledger device
+                const signature = await this.ledgerAPI.signBIP322(this.state.message, deviationPath, this.state.address, pubKey);
+                // Proceed to the next step if a signature is returned successfully
+                this.setState({
+                    activeStep: this.state.activeStep + 1,
+                    signature: signature,
+                    errorMessage: undefined
+                });
+            }
+        }
+        catch (err) {
+            // Show error message
+            this.showErrorMessage(this.ERROR_UNKNOWN + err);
+            // Set activeStep back to step 2
+            this.setState({
+                activeStep: 1
+            });
+        }
     }
 
     // Handler for clicking the 'Back' button in SignStepperStepFour
     handleStepFourBack = () => {
+        // Set activeStep back to step 2
         this.setState({
-            activeStep: 1,
-            address: '',
-            message: ''
+            activeStep: 1
         });
     };
 
     // Handler for clicking the 'Reset' button after signing
     handleReset = () => {
         this.setState({
-			activeStep: 0,
+			activeStep: 1,
             address: '',
             message: '',
             searchSpace: {
                 account: 10,
                 address: 50
             },
-            signature: ''
+            searchProgress: -1,
+            signature: '',
+            errorMessage: undefined
 		});
     };
 
@@ -258,13 +292,7 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
                     <SignStepperStepFour address={this.state.address} message={this.state.message} onBack={this.handleStepFourBack} />
                 </Stepper>
                 {this.state.activeStep === 4 && (
-                    <Paper square elevation={0} sx={{ p: 3 }}>
-                        <SignStepperStepsText>All steps completed.</SignStepperStepsText>
-                        <SignStepperStepsText>{`BIP-322 Signature: ${this.state.signature}`}</SignStepperStepsText>
-                        <Button onClick={this.handleReset} sx={{ mt: 1, mr: 1 }}>
-                            Reset
-                        </Button>
-                    </Paper>
+                    <SignStepperStepFinal signature={this.state.signature} onReset={this.handleReset}></SignStepperStepFinal>
                 )}
                 {this.state.errorMessage !== undefined && (
                     <ErrorAlert message={this.state.errorMessage} />
