@@ -14,15 +14,16 @@ import { AppClient, DefaultWalletPolicy } from 'ledger-bitcoin';
 class LedgerAPI {
 
 	// Constants
-	LEGACY_PATH = "0'/0'/";
-	SEGWIT_PATH = "49'/0'/";
-	NATIVE_SEGWIT_PATH = "84'/0'/";
-	TAPROOT_PATH = "86'/0'/";
+	public static readonly USER_REJECT_TX_ERROR = "0x6985";
+	private readonly LEGACY_PATH = "0'/0'/";
+	private readonly  SEGWIT_PATH = "49'/0'/";
+	private readonly NATIVE_SEGWIT_PATH = "84'/0'/";
+	private readonly TAPROOT_PATH = "86'/0'/";
 
 	// TransportWebHID object for communicating with the Ledger device
-	static transportWebHID: TransportWebHID;
+	private static transportWebHID: TransportWebHID;
 	// AppClient object for communicating with the Ledger device
-	ledgerClient: AppClient;
+	private ledgerClient: AppClient;
 
 	/**
 	 * Internal constructor for LedgerAPI class.

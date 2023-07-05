@@ -27,14 +27,17 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
 
     // Store the Ledger API instance
     private ledgerAPI: LedgerAPI | undefined;
-    // Warning message when Ledger API fails to connect to the device
+    // Error message when Ledger API fails to connect to the device
     public readonly ERROR_LEDGER_FAIL_CONNECTION = 
         'Unable to connect to the Bitcoin app on the Ledger device. \n' + 
         "Make sure your Ledger device is unlocked with the Bitcoin app showing the text 'Bitcoin is ready', " + 
         'and you have allowed the browser to connect with your Ledger device. \n' +
         'Click Continue when your device is ready. \n' +
         'If the problem persists, try reloading the page.'
-    // Warning message for unknown error
+    // Error message when user rejected a transaction
+    public readonly ERROR_USER_REJECT_TX = 
+        'Transaction rejected by the user.'
+    // Error message for unknown error
     public readonly ERROR_UNKNOWN = 'Unknown error occured. \n';
 
     constructor(props: SignStepperProps) {
@@ -246,8 +249,15 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
             }
         }
         catch (err) {
-            // Show error message
-            this.showErrorMessage(this.ERROR_UNKNOWN + err);
+            // Handler for user-rejected transaction
+            if (err instanceof Error && err.message.includes(LedgerAPI.USER_REJECT_TX_ERROR)) {
+                // User have rejected the transaction
+                this.showErrorMessage(this.ERROR_USER_REJECT_TX);
+            }
+            else {
+                // For other error, show a generic error message
+                this.showErrorMessage(this.ERROR_UNKNOWN + err);
+            }
             // Set activeStep back to step 2
             this.setState({
                 activeStep: 1
