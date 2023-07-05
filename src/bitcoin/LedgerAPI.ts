@@ -19,6 +19,8 @@ class LedgerAPI {
 	NATIVE_SEGWIT_PATH = "84'/0'/";
 	TAPROOT_PATH = "86'/0'/";
 
+	// TransportWebHID object for communicating with the Ledger device
+	static transportWebHID: TransportWebHID;
 	// AppClient object for communicating with the Ledger device
 	ledgerClient: AppClient;
 
@@ -35,9 +37,14 @@ class LedgerAPI {
 	 * @returns Initialized LedgerAPI instance
 	 */
 	public static async constructorAsync() {
+		// Recreate a TransportWebHID object if one is already available to reset the connection
+		if (this.transportWebHID) {
+			this.transportWebHID.close();
+		}
+		// Create a TransportWebHID object for communicating with the Ledger device
+		this.transportWebHID = await TransportWebHID.request();
 		// Create a AppClient object for communicating with the Bitcoin software on Ledger device
-		const transport = await TransportWebHID.create();
-		const appClient = new AppClient(transport);
+		const appClient = new AppClient(this.transportWebHID);
 		return new LedgerAPI(appClient);
 	}
 
