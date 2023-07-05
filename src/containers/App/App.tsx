@@ -1,25 +1,35 @@
-import React from 'react';
-import logo from './logo.svg';
+// Import dependencies
+import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+// Import containers to be rendered
+import { SignStepper } from '../SignStepper';
+
+// Import CSS
 import './App.css';
 
 function App() {
+	const darkTheme = createTheme({
+		palette: {
+		  	mode: 'dark',
+		},
+		components: {
+			MuiStepLabel: {
+				styleOverrides: {
+					label: {
+						fontSize: '1.1rem'
+					}
+				}
+			}
+		}
+	});
 	return (
-		<div className="App">
-			<header className="App-header">
-				<img src={logo} className="App-logo" alt="logo" />
-				<p>
-					Edit <code>src/App.tsx</code> and save to reload.
-				</p>
-				<a
-					className="App-link"
-					href="https://reactjs.org"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					Learn React
-				</a>
-			</header>
-		</div>
+		<ThemeProvider theme={darkTheme}>
+			<CssBaseline />
+			<div className='App'>
+				<SignStepper />
+			</div>
+		</ThemeProvider>
 	);
 }
 
