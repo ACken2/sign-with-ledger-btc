@@ -265,14 +265,6 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
         }
     }
 
-    // Handler for clicking the 'Back' button in SignStepperStepFour
-    handleStepFourBack = () => {
-        // Set activeStep back to step 2
-        this.setState({
-            activeStep: 1
-        });
-    };
-
     // Handler for clicking the 'Reset' button after signing
     handleReset = () => {
         this.setState({
@@ -299,7 +291,7 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
                         address={this.state.address} progress={this.state.searchProgress} seachSpace={this.state.searchSpace} 
                         onExpandSearchSpace={this.handleStepThreeContinue} onBack={this.handleStepThreeBack}
                     />
-                    <SignStepperStepFour address={this.state.address} message={this.state.message} onBack={this.handleStepFourBack} />
+                    <SignStepperStepFour address={this.state.address} message={this.state.message} />
                 </Stepper>
                 {this.state.activeStep === 4 && (
                     <SignStepperStepFinal signature={this.state.signature} onReset={this.handleReset}></SignStepperStepFinal>
