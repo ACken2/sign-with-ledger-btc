@@ -15,8 +15,8 @@ class LedgerAPI {
 
 	// Constants
 	public static readonly USER_REJECT_TX_ERROR = "0x6985";
-	private readonly LEGACY_PATH = "0'/0'/";
-	private readonly  SEGWIT_PATH = "49'/0'/";
+	private readonly LEGACY_PATH = "44'/0'/";
+	private readonly SEGWIT_PATH = "49'/0'/";
 	private readonly NATIVE_SEGWIT_PATH = "84'/0'/";
 	private readonly TAPROOT_PATH = "86'/0'/";
 
@@ -211,6 +211,10 @@ class LedgerAPI {
 	 * @returns The simple BIP-322 signature, encoded using base-64
 	 */
 	public async signBIP322(message: string, deviationPath: string, address: string, pubKey: Buffer) {
+		// Sign a legacy signature if a legacy address has been provided
+		if (Address.isP2PKH(address)) {
+			return await this.signMessage(message, deviationPath);
+		}
 		// Convert address into scriptPubKey
 		const scriptPubKey = Address.convertAdressToScriptPubkey(address);
 		// Construct toSpend and toSign transaction as specified in BIP-322
