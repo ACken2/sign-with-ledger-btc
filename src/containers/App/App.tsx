@@ -1,8 +1,11 @@
 // Import dependencies
+import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 // Import containers to be rendered
+import { AppFooter } from '../../components';
 import { SignStepper } from '../SignStepper';
 
 // Import CSS
@@ -26,9 +29,16 @@ function App() {
 	return (
 		<ThemeProvider theme={darkTheme}>
 			<CssBaseline />
-			<div className='App'>
+			<Stack 
+				className='App' 
+				spacing={2} 
+				justifyContent="center" 
+				alignItems="flex-start" 
+				divider={<Divider orientation="horizontal" flexItem />}
+			>
 				<SignStepper />
-			</div>
+				<AppFooter />
+			</Stack>
 		</ThemeProvider>
 	);
 }
