@@ -1,7 +1,10 @@
 {
 	"name": "sign-with-ledger-btc",
+	"description": "Sign BIP-322 signature with Ledger devices",
 	"version": "0.1.0",
-	"private": true,
+	"author": "Ken Sze <acken2@outlook.com>",
+    "repository": "github:ACken2/sign-with-ledger-btc",
+    "license": "MIT",
 	"dependencies": {
 		"@bitcoinerlab/secp256k1": "^1.0.2",
 		"@emotion/react": "^11.11.1",
