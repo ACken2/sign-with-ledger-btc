@@ -13,6 +13,7 @@ type SignStepperProps = {
     // Empty props
 }
 type SignStepperState = {
+    orientation: 'vertical' | 'horizontal'; // Orientation of the SignStepper to be rendered
     activeStep: number; // Store the current step
     address: string; // Store the signing address
     message: string; // Store the message to be signed
@@ -45,6 +46,7 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
 		super(props);
 		// Set initial state
 		this.state = {
+            orientation: this.getStepperOrientation(window.innerWidth),
 			activeStep: 0,
             address: '',
             message: '',
@@ -56,6 +58,30 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
             signature: '',
             errorMessage: undefined
 		};
+    }
+
+    /**
+     * For mounting resize event listener for re-orientation if needed
+     */
+    componentDidMount() {
+        window.addEventListener('resize', this.handleScreenWidthChange);
+    }
+    
+    /**
+     * For un-mounting resize event listener
+     */
+    componentWillUnmount() {
+        window.removeEventListener('resize', this.handleScreenWidthChange);
+    }
+
+    /**
+     * Return the orientation of the Stepper for the given window width.
+     * Horizontal stepper will be used for screen width above 1440, vertical stepper will be used otherwise.
+     * @param currentWidth Current window width
+     * @returns Optimal orientation of the Stepper
+     */
+    getStepperOrientation(currentWidth: number) {
+        return currentWidth >= 1440 ? 'horizontal' : 'vertical';
     }
 
     /**
@@ -89,6 +115,15 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
             this.showErrorMessage(this.ERROR_LEDGER_FAIL_CONNECTION);
             return false;
         }
+    }
+
+    /**
+     * Handler for resize event to update stepper orientation if necessary.
+     */
+    handleScreenWidthChange = () => {
+        this.setState({
+            orientation: this.getStepperOrientation(window.innerWidth)
+        });
     }
 
     /**
@@ -283,8 +318,8 @@ export default class SignStepper extends React.Component<SignStepperProps, SignS
 
     render() {
         return (
-            <Box sx={{ maxWidth: 800 }}>
-                <Stepper activeStep={this.state.activeStep} orientation="vertical">
+            <Box>
+                <Stepper activeStep={this.state.activeStep} orientation={this.state.orientation}>
                     <SignStepperStepOne onContinue={this.handleStepOneContinue} />
                     <SignStepperStepTwo onContinue={this.handleStepTwoContinue} onBack={this.handleStepTwoBack} />
                     <SignStepperStepThree 

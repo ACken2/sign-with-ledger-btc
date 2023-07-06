@@ -4,9 +4,9 @@ import Divider from '@mui/material/Divider';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
-// Import containers to be rendered
-import { AppFooter } from '../../components';
+// Import containers/components to be rendered
 import { SignStepper } from '../SignStepper';
+import { AppHeader, AppFooter } from '../../components';
 
 // Import CSS
 import './App.css';
@@ -33,9 +33,10 @@ function App() {
 				className='App' 
 				spacing={2} 
 				justifyContent="center" 
-				alignItems="flex-start" 
+				alignItems="center" 
 				divider={<Divider orientation="horizontal" flexItem />}
 			>
+				<AppHeader />
 				<SignStepper />
 				<AppFooter />
 			</Stack>
