@@ -1,6 +1,7 @@
 {
 	"name": "sign-with-ledger-btc",
 	"description": "Sign BIP-322 signature with Ledger devices",
+	"homepage": "https://acken2.github.io/sign-with-ledger-btc",
 	"version": "0.1.0",
 	"author": "Ken Sze <acken2@outlook.com>",
     "repository": "github:ACken2/sign-with-ledger-btc",
